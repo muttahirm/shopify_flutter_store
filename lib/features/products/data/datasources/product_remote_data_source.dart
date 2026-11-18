@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 
-import '../models/product_model.dart';
-import '../models/product_variant_model.dart';
+import '../models/products/product_model.dart';
+import '../models/products/product_variant_model.dart';
 
 class ProductRemoteDataSource {
   final Dio _dio;
