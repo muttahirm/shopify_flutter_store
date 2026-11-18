@@ -26,6 +26,9 @@ class _ProductDetailsPageState extends ConsumerState<ProductDetailsPage> {
     final cartState = ref.watch(cartControllerProvider);
     final textTheme = Theme.of(context).textTheme;
     final variantsAsync = ref.watch(productVariantsProvider(product.id));
+    final cartQuantity = ref.watch(
+      cartControllerProvider.select((state) => state.cart?.totalQuantity ?? 0),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -33,7 +36,11 @@ class _ProductDetailsPageState extends ConsumerState<ProductDetailsPage> {
         actions: [
           IconButton(
             tooltip: 'Open cart',
-            icon: const Icon(Icons.shopping_cart_outlined),
+            icon: Badge(
+              isLabelVisible: cartQuantity > 0,
+              label: Text('$cartQuantity'),
+              child: const Icon(Icons.shopping_cart_outlined),
+            ),
             onPressed: () {
               Navigator.of(
                 context,
