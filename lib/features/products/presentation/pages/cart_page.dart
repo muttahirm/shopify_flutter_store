@@ -4,8 +4,46 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/cart_controller.dart';
 
-class CartPage extends ConsumerWidget {
+class CartPage extends ConsumerStatefulWidget {
   const CartPage({super.key});
+
+  @override
+  ConsumerState<CartPage> createState() => _CartPageState();
+}
+
+class _CartPageState extends ConsumerState<CartPage>
+    with WidgetsBindingObserver {
+  bool _wasInBackground = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused) {
+      _wasInBackground = true;
+    }
+
+    if (state == AppLifecycleState.resumed && _wasInBackground) {
+      _wasInBackground = false;
+
+      final cartState = ref.read(cartControllerProvider);
+
+      if (cartState.cart != null && !cartState.isLoading) {
+        ref.read(cartControllerProvider.notifier).refreshCart();
+      }
+    }
+  }
 
   Future<void> _refresh(WidgetRef ref) async {
     await ref.read(cartControllerProvider.notifier).refreshCart();
@@ -51,7 +89,7 @@ class CartPage extends ConsumerWidget {
     }
 
     try {
-      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      final opened = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
 
       if (!opened) {
         showMessage('Unable to open checkout.');
@@ -62,7 +100,7 @@ class CartPage extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final state = ref.watch(cartControllerProvider);
     final cart = state.cart;
     final controller = ref.read(cartControllerProvider.notifier);
