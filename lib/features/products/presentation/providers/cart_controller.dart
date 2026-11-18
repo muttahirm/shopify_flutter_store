@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/cart.dart';
@@ -9,8 +11,15 @@ final cartControllerProvider = NotifierProvider<CartController, CartState>(
 );
 
 class CartController extends Notifier<CartState> {
+  bool _restored = false;
+
   @override
-  CartState build() => const CartState();
+  CartState build() {
+    // Start restoration after the initial state is available.
+    Future.microtask(refreshCart);
+
+    return const CartState(isLoading: true);
+  }
 
   Future<bool> addItem({required String variantId, int quantity = 1}) {
     return _run(
@@ -21,8 +30,10 @@ class CartController extends Notifier<CartState> {
         if (cart == null) {
           cart = await ref.read(createCartProvider)();
 
-          // Retain the new cart if adding the item later fails.
+          // Retain the ID even if saving or adding later fails.
           state = CartState(cart: cart, isLoading: true);
+
+          await ref.read(cartLocalDataSourceProvider).saveCartId(cart.id);
         }
 
         return ref.read(addCartItemProvider)(
@@ -41,10 +52,8 @@ class CartController extends Notifier<CartState> {
     return _run(
       mutation: true,
       action: () {
-        final cart = _requireCart();
-
         return ref.read(updateCartItemQuantityProvider)(
-          cartId: cart.id,
+          cartId: _requireCart().id,
           lineId: lineId,
           quantity: quantity,
         );
@@ -56,27 +65,37 @@ class CartController extends Notifier<CartState> {
     return _run(
       mutation: true,
       action: () {
-        final cart = _requireCart();
-
         return ref.read(removeCartItemProvider)(
-          cartId: cart.id,
+          cartId: _requireCart().id,
           lineId: lineId,
         );
       },
     );
   }
 
-  Future<bool> refreshCart() {
+  Future<bool> refreshCart() async {
+    // Initial restoration starts with isLoading already true.
+    if (state.isLoading && _restored) {
+      return false;
+    }
+
+    // Prevent another refresh while initial restoration is running.
+    if (!_restored) {
+      _restored = true;
+    }
+
     return _run(
       mutation: false,
+      allowInitialLoading: true,
       action: () async {
-        final cart = state.cart;
+        final storage = ref.read(cartLocalDataSourceProvider);
+        final cartId = state.cart?.id ?? await storage.readCartId();
 
-        if (cart == null) {
+        if (cartId == null) {
           return null;
         }
 
-        return ref.read(getCartProvider)(cart.id);
+        return ref.read(getCartProvider)(cartId);
       },
     );
   }
@@ -94,9 +113,9 @@ class CartController extends Notifier<CartState> {
   Future<bool> _run({
     required bool mutation,
     required Future<Cart?> Function() action,
+    bool allowInitialLoading = false,
   }) async {
-    // Reject overlapping requests.
-    if (state.isLoading) {
+    if (state.isLoading && !allowInitialLoading) {
       return false;
     }
 
@@ -118,20 +137,26 @@ class CartController extends Notifier<CartState> {
 
     try {
       final cart = await action();
+      final storage = ref.read(cartLocalDataSourceProvider);
+
+      if (cart == null) {
+        await storage.clearCartId();
+      } else {
+        // Keep the latest cart visible even if storage fails.
+        state = CartState(cart: cart, isLoading: true);
+        await storage.saveCartId(cart.id);
+      }
 
       state = CartState(cart: cart);
-
       return true;
     } catch (error) {
-      final requiresRefresh =
-          state.cart != null && (mutation || state.requiresRefresh);
-
+      // Preserve the saved ID on network failures.
+      // Block mutations until restoration/refresh succeeds.
       state = CartState(
         cart: state.cart,
-        requiresRefresh: requiresRefresh,
-        errorMessage: requiresRefresh
-            ? 'Unable to confirm the cart state. Refresh before continuing.'
-            : 'Unable to complete the cart request. Please try again.',
+        requiresRefresh: true,
+        errorMessage:
+            'Unable to synchronize the cart. Refresh before continuing.',
       );
 
       return false;

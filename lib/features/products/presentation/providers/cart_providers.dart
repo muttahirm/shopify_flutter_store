@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../../core/network/shopify_client.dart';
 import '../../data/datasources/cart_remote_data_source.dart';
@@ -9,6 +10,8 @@ import '../../domain/usecases/create_cart.dart';
 import '../../domain/usecases/get_cart.dart';
 import '../../domain/usecases/remove_cart_item.dart';
 import '../../domain/usecases/update_cart_item_quantity.dart';
+import '../../../../core/config/shopify_config.dart';
+import '../../data/datasources/cart_local_data_source.dart';
 
 // Data source
 final cartRemoteDataSourceProvider = Provider<CartRemoteDataSource>((ref) {
@@ -53,4 +56,11 @@ final removeCartItemProvider = Provider<RemoveCartItem>((ref) {
   final repository = ref.watch(cartRepositoryProvider);
 
   return RemoveCartItem(repository);
+});
+
+final cartLocalDataSourceProvider = Provider<CartLocalDataSource>((ref) {
+  return CartLocalDataSource(
+    const FlutterSecureStorage(),
+    storeDomain: ShopifyConfig.storeDomain,
+  );
 });
