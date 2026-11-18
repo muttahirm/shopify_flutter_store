@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/cart_controller.dart';
 
@@ -8,6 +9,56 @@ class CartPage extends ConsumerWidget {
 
   Future<void> _refresh(WidgetRef ref) async {
     await ref.read(cartControllerProvider.notifier).refreshCart();
+  }
+
+  Future<void> _checkout(BuildContext context, WidgetRef ref) async {
+    void showMessage(String message) {
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+    }
+
+    final initialState = ref.read(cartControllerProvider);
+
+    if (initialState.isLoading || initialState.requiresRefresh) {
+      return;
+    }
+
+    final refreshed = await ref
+        .read(cartControllerProvider.notifier)
+        .refreshCart();
+
+    if (!context.mounted) return;
+
+    if (!refreshed) {
+      showMessage('Unable to refresh the cart. Please try again.');
+      return;
+    }
+
+    final cart = ref.read(cartControllerProvider).cart;
+
+    if (cart == null || cart.lines.isEmpty) {
+      showMessage('Your cart is empty.');
+      return;
+    }
+
+    final uri = Uri.tryParse(cart.checkoutUrl);
+
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
+      showMessage('The checkout URL is invalid.');
+      return;
+    }
+
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+      if (!opened) {
+        showMessage('Unable to open checkout.');
+      }
+    } catch (error) {
+      showMessage('Unable to open checkout. Please try again.');
+    }
   }
 
   @override
@@ -183,6 +234,17 @@ class CartPage extends ConsumerWidget {
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: canModify
+                            ? () => _checkout(context, ref)
+                            : null,
+                        icon: const Icon(Icons.lock_outline),
+                        label: const Text('Continue to checkout'),
+                      ),
                     ),
                   ],
                 ),
