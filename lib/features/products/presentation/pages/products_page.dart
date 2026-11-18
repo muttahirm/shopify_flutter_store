@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/cart_controller.dart';
 import '../providers/product_providers.dart';
+import 'cart_page.dart';
 import 'product_details_page.dart';
 
 class ProductsPage extends ConsumerWidget {
@@ -10,9 +12,29 @@ class ProductsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final productsAsync = ref.watch(productsProvider);
+    final cartQuantity = ref.watch(
+      cartControllerProvider.select((state) => state.cart?.totalQuantity ?? 0),
+    );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Shopify Products')),
+      appBar: AppBar(
+        title: const Text('Shopify Products'),
+        actions: [
+          IconButton(
+            tooltip: 'Open cart',
+            icon: Badge(
+              isLabelVisible: cartQuantity > 0,
+              label: Text('$cartQuantity'),
+              child: const Icon(Icons.shopping_cart_outlined),
+            ),
+            onPressed: () {
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute<void>(builder: (_) => const CartPage()));
+            },
+          ),
+        ],
+      ),
       body: productsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stackTrace) => Center(
