@@ -6,6 +6,7 @@ import '../../domain/entities/product.dart';
 import '../../domain/entities/product_variant.dart';
 import '../providers/product_providers.dart';
 import '../providers/cart_controller.dart';
+import 'cart_page.dart';
 
 class ProductDetailsPage extends ConsumerStatefulWidget {
   final Product product;
@@ -27,7 +28,20 @@ class _ProductDetailsPageState extends ConsumerState<ProductDetailsPage> {
     final variantsAsync = ref.watch(productVariantsProvider(product.id));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Product details')),
+      appBar: AppBar(
+        title: const Text('Shopify Products'),
+        actions: [
+          IconButton(
+            tooltip: 'Open cart',
+            icon: const Icon(Icons.shopping_cart_outlined),
+            onPressed: () {
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute<void>(builder: (_) => const CartPage()));
+            },
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
