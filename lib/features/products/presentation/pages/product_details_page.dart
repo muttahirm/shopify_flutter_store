@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/entities/product_variant.dart';
 import '../providers/product_providers.dart';
+import '../providers/cart_controller.dart';
 
 class ProductDetailsPage extends ConsumerStatefulWidget {
   final Product product;
@@ -21,6 +22,7 @@ class _ProductDetailsPageState extends ConsumerState<ProductDetailsPage> {
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
+    final cartState = ref.watch(cartControllerProvider);
     final textTheme = Theme.of(context).textTheme;
     final variantsAsync = ref.watch(productVariantsProvider(product.id));
 
@@ -116,6 +118,88 @@ class _ProductDetailsPageState extends ConsumerState<ProductDetailsPage> {
                           ? 'Choose an option to continue.'
                           : 'Out of stock',
                     ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed:
+                            selectedVariant == null ||
+                                !selectedVariant.availableForSale ||
+                                cartState.isLoading ||
+                                cartState.requiresRefresh
+                            ? null
+                            : () async {
+                                final success = await ref
+                                    .read(cartControllerProvider.notifier)
+                                    .addItem(variantId: selectedVariant.id);
+
+                                if (!context.mounted) return;
+
+                                final latestState = ref.read(
+                                  cartControllerProvider,
+                                );
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      success
+                                          ? 'Cart updated.'
+                                          : latestState.errorMessage ??
+                                                'Unable to add the item.',
+                                    ),
+                                  ),
+                                );
+                              },
+                        icon: cartState.isLoading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.add_shopping_cart),
+                        label: Text(
+                          cartState.isLoading
+                              ? 'Updating cart…'
+                              : 'Add to cart',
+                        ),
+                      ),
+                    ),
+                    if (cartState.requiresRefresh) ...[
+                      const SizedBox(height: 8),
+                      const Text(
+                        'The last change could not be confirmed. '
+                        'Refresh the cart and check its contents before adding again.',
+                      ),
+                      TextButton(
+                        onPressed: cartState.isLoading
+                            ? null
+                            : () async {
+                                final success = await ref
+                                    .read(cartControllerProvider.notifier)
+                                    .refreshCart();
+
+                                if (!context.mounted) return;
+
+                                final latestState = ref.read(
+                                  cartControllerProvider,
+                                );
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      success
+                                          ? 'Cart refreshed.'
+                                          : latestState.errorMessage ??
+                                                'Unable to refresh the cart.',
+                                    ),
+                                  ),
+                                );
+                              },
+                        child: const Text('Refresh cart'),
+                      ),
+                    ],
                   ],
                 );
               },
