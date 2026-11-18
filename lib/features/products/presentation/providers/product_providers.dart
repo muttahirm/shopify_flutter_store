@@ -6,6 +6,8 @@ import '../../data/repositories/product_repository_impl.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../../domain/usecases/get_products.dart';
+import '../../domain/entities/product_variant.dart';
+import '../../domain/usecases/get_product_variants.dart';
 
 // 1. Data source receives the configured Dio client.
 final productRemoteDataSourceProvider = Provider<ProductRemoteDataSource>((
@@ -36,3 +38,16 @@ final productsProvider = FutureProvider<List<Product>>((ref) {
 
   return getProducts(limit: 20);
 });
+
+final getProductVariantsProvider = Provider<GetProductVariants>((ref) {
+  final repository = ref.watch(productRepositoryProvider);
+
+  return GetProductVariants(repository);
+});
+
+final productVariantsProvider = FutureProvider.autoDispose
+    .family<List<ProductVariant>, String>((ref, productId) {
+      final getProductVariants = ref.watch(getProductVariantsProvider);
+
+      return getProductVariants(productId);
+    });
