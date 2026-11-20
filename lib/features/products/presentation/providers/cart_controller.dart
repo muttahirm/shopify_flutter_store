@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/cart.dart';
+import '../../domain/entities/cart_mutation_result.dart';
+import '../../domain/entities/cart_warning.dart';
 import 'cart_providers.dart';
 import 'cart_state.dart';
 
@@ -11,7 +13,7 @@ final cartControllerProvider = NotifierProvider<CartController, CartState>(
 );
 
 class CartController extends Notifier<CartState> {
-  bool _restored = false;
+  bool _requestRunning = false;
 
   @override
   CartState build() {
@@ -28,18 +30,27 @@ class CartController extends Notifier<CartState> {
         var cart = state.cart;
 
         if (cart == null) {
-          cart = await ref.read(createCartProvider)();
+          final created = await ref.read(createCartProvider)();
+          cart = created.cart;
 
-          // Retain the ID even if saving or adding later fails.
-          state = CartState(cart: cart, isLoading: true);
+          state = CartState(
+            cart: cart,
+            isLoading: true,
+            warnings: created.warnings,
+          );
 
           await ref.read(cartLocalDataSourceProvider).saveCartId(cart.id);
         }
 
-        return ref.read(addCartItemProvider)(
+        final result = await ref.read(addCartItemProvider)(
           cartId: cart.id,
           variantId: variantId,
           quantity: quantity,
+        );
+
+        return CartMutationResult(
+          cart: result.cart,
+          warnings: [...state.warnings, ...result.warnings],
         );
       },
     );
@@ -73,30 +84,30 @@ class CartController extends Notifier<CartState> {
     );
   }
 
-  Future<bool> refreshCart() async {
-    // Initial restoration starts with isLoading already true.
-    if (state.isLoading && _restored) {
-      return false;
-    }
-
-    // Prevent another refresh while initial restoration is running.
-    if (!_restored) {
-      _restored = true;
-    }
-
+  Future<bool> refreshCart() {
     return _run(
       mutation: false,
-      allowInitialLoading: true,
       action: () async {
         final storage = ref.read(cartLocalDataSourceProvider);
         final cartId = state.cart?.id ?? await storage.readCartId();
 
-        if (cartId == null) {
-          return null;
-        }
+        if (cartId == null) return null;
 
-        return ref.read(getCartProvider)(cartId);
+        final cart = await ref.read(getCartProvider)(cartId);
+
+        if (cart == null) return null;
+
+        return CartMutationResult(cart: cart);
       },
+    );
+  }
+
+  void dismissWarnings() {
+    state = CartState(
+      cart: state.cart,
+      isLoading: state.isLoading,
+      errorMessage: state.errorMessage,
+      requiresRefresh: state.requiresRefresh,
     );
   }
 
@@ -112,16 +123,15 @@ class CartController extends Notifier<CartState> {
 
   Future<bool> _run({
     required bool mutation,
-    required Future<Cart?> Function() action,
-    bool allowInitialLoading = false,
+    required Future<CartMutationResult?> Function() action,
   }) async {
-    if (state.isLoading && !allowInitialLoading) {
-      return false;
-    }
+    if (_requestRunning) return false;
+    if (mutation && state.isLoading) return false;
 
     if (mutation && state.requiresRefresh) {
       state = CartState(
         cart: state.cart,
+        warnings: state.warnings,
         requiresRefresh: true,
         errorMessage: 'Refresh the cart before making another change.',
       );
@@ -129,37 +139,49 @@ class CartController extends Notifier<CartState> {
       return false;
     }
 
+    _requestRunning = true;
+
     state = CartState(
       cart: state.cart,
       isLoading: true,
       requiresRefresh: state.requiresRefresh,
+      warnings: mutation ? const [] : state.warnings,
     );
 
     try {
-      final cart = await action();
+      final result = await action();
       final storage = ref.read(cartLocalDataSourceProvider);
+      final cart = result?.cart;
+
+      final warnings = mutation
+          ? result!.warnings
+          : cart == null
+          ? const <CartWarning>[]
+          : state.warnings;
+
+      state = CartState(cart: cart, isLoading: true, warnings: warnings);
 
       if (cart == null) {
         await storage.clearCartId();
       } else {
-        // Keep the latest cart visible even if storage fails.
-        state = CartState(cart: cart, isLoading: true);
         await storage.saveCartId(cart.id);
       }
 
-      state = CartState(cart: cart);
+      state = CartState(cart: cart, warnings: warnings);
+
       return true;
     } catch (error) {
-      // Preserve the saved ID on network failures.
-      // Block mutations until restoration/refresh succeeds.
       state = CartState(
         cart: state.cart,
+        warnings: state.warnings,
         requiresRefresh: true,
         errorMessage:
             'Unable to synchronize the cart. Refresh before continuing.',
       );
 
       return false;
+    } finally {
+      _requestRunning = false;
     }
   }
 }

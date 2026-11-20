@@ -1,4 +1,4 @@
-import '../../domain/entities/cart_warning.dart';
+import '../../../domain/entities/cart_warning.dart';
 
 class CartWarningModel {
   final String code;

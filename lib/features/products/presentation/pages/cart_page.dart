@@ -288,6 +288,29 @@ class _CartPageState extends ConsumerState<CartPage>
                 ),
               ),
             ),
+          if (state.warnings.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Cart updated with notices',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  for (final warning in state.warnings)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(warning.message),
+                    ),
+                  TextButton(
+                    onPressed: controller.dismissWarnings,
+                    child: const Text('Dismiss'),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

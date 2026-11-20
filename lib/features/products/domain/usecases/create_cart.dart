@@ -1,4 +1,4 @@
-import '../entities/cart.dart';
+import '../entities/cart_mutation_result.dart';
 import '../repositories/cart_repository.dart';
 
 class CreateCart {
@@ -6,7 +6,7 @@ class CreateCart {
 
   const CreateCart(this._repository);
 
-  Future<Cart> call() {
+  Future<CartMutationResult> call() {
     return _repository.createCart();
   }
 }

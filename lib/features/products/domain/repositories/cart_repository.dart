@@ -1,21 +1,25 @@
 import '../entities/cart.dart';
+import '../entities/cart_mutation_result.dart';
 
 abstract interface class CartRepository {
-  Future<Cart> createCart();
+  Future<CartMutationResult> createCart();
 
   Future<Cart?> getCart(String cartId);
 
-  Future<Cart> addItem({
+  Future<CartMutationResult> addItem({
     required String cartId,
     required String variantId,
     required int quantity,
   });
 
-  Future<Cart> updateItemQuantity({
+  Future<CartMutationResult> updateItemQuantity({
     required String cartId,
     required String lineId,
     required int quantity,
   });
 
-  Future<Cart> removeItem({required String cartId, required String lineId});
+  Future<CartMutationResult> removeItem({
+    required String cartId,
+    required String lineId,
+  });
 }

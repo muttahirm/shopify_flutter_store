@@ -1,4 +1,4 @@
-import '../entities/cart.dart';
+import '../entities/cart_mutation_result.dart';
 import '../repositories/cart_repository.dart';
 
 class RemoveCartItem {
@@ -6,7 +6,10 @@ class RemoveCartItem {
 
   const RemoveCartItem(this._repository);
 
-  Future<Cart> call({required String cartId, required String lineId}) {
+  Future<CartMutationResult> call({
+    required String cartId,
+    required String lineId,
+  }) {
     if (cartId.trim().isEmpty) {
       throw ArgumentError.value(cartId, 'cartId', 'Cart ID must not be empty.');
     }

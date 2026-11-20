@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 
 import '../models/cart/cart_model.dart';
+import '../models/cart/cart_mutation_result_model.dart';
+import '../models/cart/cart_warning_model.dart';
 
 class CartRemoteDataSource {
   final Dio _dio;
@@ -76,7 +78,7 @@ class CartRemoteDataSource {
   ''' +
       _cartFields;
 
-  Future<CartModel> createCart() async {
+  Future<CartMutationResultModel> createCart() async {
     final data = await _execute(_createCartMutation);
 
     final payload = data['cartCreate'] as Map<String, dynamic>?;
@@ -104,7 +106,10 @@ class CartRemoteDataSource {
       throw const CartRemoteException('Shopify did not return a cart.');
     }
 
-    return CartModel.fromJson(cart);
+    return CartMutationResultModel(
+      cart: CartModel.fromJson(cart),
+      warnings: _parseWarnings(payload),
+    );
   }
 
   Future<Map<String, dynamic>> _execute(
@@ -246,26 +251,26 @@ class CartRemoteDataSource {
   }
 
   static const _addItemMutation = r'''
-  mutation AddCartItem($cartId: ID!, $lines: [CartLineInput!]!) {
-    cartLinesAdd(cartId: $cartId, lines: $lines) {
-      cart {
-        id
+      mutation AddCartItem($cartId: ID!, $lines: [CartLineInput!]!) {
+        cartLinesAdd(cartId: $cartId, lines: $lines) {
+          cart {
+            id
+          }
+          userErrors {
+            field
+            message
+            code
+          }
+          warnings {
+            code
+            message
+            target
+          }
+        }
       }
-      userErrors {
-        field
-        message
-        code
-      }
-      warnings {
-        code
-        message
-        target
-      }
-    }
-  }
-''';
+    ''';
 
-  Future<CartModel> addItem({
+  Future<CartMutationResultModel> addItem({
     required String cartId,
     required String variantId,
     required int quantity,
@@ -316,7 +321,10 @@ class CartRemoteDataSource {
       );
     }
 
-    return cart;
+    return CartMutationResultModel(
+      cart: cart,
+      warnings: _parseWarnings(payload),
+    );
   }
 
   static const _updateItemQuantityMutation = r'''
@@ -342,7 +350,7 @@ class CartRemoteDataSource {
   }
 ''';
 
-  Future<CartModel> updateItemQuantity({
+  Future<CartMutationResultModel> updateItemQuantity({
     required String cartId,
     required String lineId,
     required int quantity,
@@ -393,7 +401,10 @@ class CartRemoteDataSource {
       );
     }
 
-    return cart;
+    return CartMutationResultModel(
+      cart: cart,
+      warnings: _parseWarnings(payload),
+    );
   }
 
   static const _removeItemMutation = r'''
@@ -416,7 +427,7 @@ class CartRemoteDataSource {
   }
 ''';
 
-  Future<CartModel> removeItem({
+  Future<CartMutationResultModel> removeItem({
     required String cartId,
     required String lineId,
   }) async {
@@ -464,7 +475,21 @@ class CartRemoteDataSource {
       );
     }
 
-    return cart;
+    return CartMutationResultModel(
+      cart: cart,
+      warnings: _parseWarnings(payload),
+    );
+  }
+
+  List<CartWarningModel> _parseWarnings(Map<String, dynamic> payload) {
+    final warnings = payload['warnings'] as List<dynamic>;
+
+    return warnings
+        .map(
+          (warning) =>
+              CartWarningModel.fromJson(warning as Map<String, dynamic>),
+        )
+        .toList(growable: false);
   }
 }
 

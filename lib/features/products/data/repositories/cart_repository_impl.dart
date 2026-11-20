@@ -1,4 +1,5 @@
 import '../../domain/entities/cart.dart';
+import '../../domain/entities/cart_mutation_result.dart';
 import '../../domain/repositories/cart_repository.dart';
 import '../datasources/cart_remote_data_source.dart';
 
@@ -8,7 +9,7 @@ class CartRepositoryImpl implements CartRepository {
   const CartRepositoryImpl(this._remoteDataSource);
 
   @override
-  Future<Cart> createCart() async {
+  Future<CartMutationResult> createCart() async {
     final model = await _remoteDataSource.createCart();
 
     return model.toEntity();
@@ -22,7 +23,7 @@ class CartRepositoryImpl implements CartRepository {
   }
 
   @override
-  Future<Cart> addItem({
+  Future<CartMutationResult> addItem({
     required String cartId,
     required String variantId,
     required int quantity,
@@ -37,7 +38,7 @@ class CartRepositoryImpl implements CartRepository {
   }
 
   @override
-  Future<Cart> updateItemQuantity({
+  Future<CartMutationResult> updateItemQuantity({
     required String cartId,
     required String lineId,
     required int quantity,
@@ -52,7 +53,7 @@ class CartRepositoryImpl implements CartRepository {
   }
 
   @override
-  Future<Cart> removeItem({
+  Future<CartMutationResult> removeItem({
     required String cartId,
     required String lineId,
   }) async {
