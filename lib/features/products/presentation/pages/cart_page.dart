@@ -29,7 +29,8 @@ class _CartPageState extends ConsumerState<CartPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.hidden ||
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden ||
         state == AppLifecycleState.paused) {
       _wasInBackground = true;
     }
@@ -37,11 +38,7 @@ class _CartPageState extends ConsumerState<CartPage>
     if (state == AppLifecycleState.resumed && _wasInBackground) {
       _wasInBackground = false;
 
-      final cartState = ref.read(cartControllerProvider);
-
-      if (cartState.cart != null && !cartState.isLoading) {
-        ref.read(cartControllerProvider.notifier).refreshCart();
-      }
+      ref.read(cartControllerProvider.notifier).refreshCart();
     }
   }
 
@@ -310,6 +307,11 @@ class _CartPageState extends ConsumerState<CartPage>
                   ),
                 ],
               ),
+            ),
+          if (state.noticeMessage != null)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(state.noticeMessage!),
             ),
         ],
       ),

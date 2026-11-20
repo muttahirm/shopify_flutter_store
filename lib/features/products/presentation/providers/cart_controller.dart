@@ -14,6 +14,7 @@ final cartControllerProvider = NotifierProvider<CartController, CartState>(
 
 class CartController extends Notifier<CartState> {
   bool _requestRunning = false;
+  bool _refreshQueued = false;
 
   @override
   CartState build() {
@@ -84,22 +85,45 @@ class CartController extends Notifier<CartState> {
     );
   }
 
-  Future<bool> refreshCart() {
-    return _run(
+  Future<bool> refreshCart() async {
+    if (_requestRunning) {
+      _refreshQueued = true;
+      return false;
+    }
+
+    var cartUnavailable = false;
+
+    final success = await _run(
       mutation: false,
       action: () async {
         final storage = ref.read(cartLocalDataSourceProvider);
+
         final cartId = state.cart?.id ?? await storage.readCartId();
 
-        if (cartId == null) return null;
+        if (cartId == null) {
+          return null;
+        }
 
         final cart = await ref.read(getCartProvider)(cartId);
 
-        if (cart == null) return null;
+        if (cart == null) {
+          cartUnavailable = true;
+          return null;
+        }
 
         return CartMutationResult(cart: cart);
       },
     );
+
+    if (success && cartUnavailable) {
+      state = const CartState(
+        noticeMessage:
+            'Your previous cart is no longer available. '
+            'Add a product to start a new cart.',
+      );
+    }
+
+    return success;
   }
 
   void dismissWarnings() {
@@ -159,11 +183,14 @@ class CartController extends Notifier<CartState> {
           ? const <CartWarning>[]
           : state.warnings;
 
-      state = CartState(cart: cart, isLoading: true, warnings: warnings);
-
       if (cart == null) {
+        // Only reached after a successful lookup or no saved ID.
+        // Keep the previous state until deletion succeeds.
         await storage.clearCartId();
       } else {
+        // Retain a successfully mutated cart even if saving fails.
+        state = CartState(cart: cart, isLoading: true, warnings: warnings);
+
         await storage.saveCartId(cart.id);
       }
 
@@ -182,6 +209,11 @@ class CartController extends Notifier<CartState> {
       return false;
     } finally {
       _requestRunning = false;
+
+      if (_refreshQueued) {
+        _refreshQueued = false;
+        Future.microtask(refreshCart);
+      }
     }
   }
 }
