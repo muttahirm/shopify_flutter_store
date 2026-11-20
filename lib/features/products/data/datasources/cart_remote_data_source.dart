@@ -66,6 +66,11 @@ class CartRemoteDataSource {
           message
           code
         }
+        warnings {
+          code
+          message
+          target
+        }
       }
     }
   ''' +
@@ -251,6 +256,11 @@ class CartRemoteDataSource {
         message
         code
       }
+      warnings {
+        code
+        message
+        target
+      }
     }
   }
 ''';
@@ -323,6 +333,11 @@ class CartRemoteDataSource {
         message
         code
       }
+      warnings {
+        code
+        message
+        target
+      }
     }
   }
 ''';
@@ -391,6 +406,11 @@ class CartRemoteDataSource {
         field
         message
         code
+      }
+      warnings {
+        code
+        message
+        target
       }
     }
   }
