@@ -1,0 +1,56 @@
+name: Flutter CI
+
+on:
+  # Run when code is pushed to main
+  push:
+    branches:
+      - "**"
+
+  # Run when a PR targets main
+  pull_request:
+    branches:
+      - main
+
+  # Allow manual execution
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flutter-ci:
+    name: Flutter Analyze and Test
+    # GitHub provides a Linux computer
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Download repository code
+      - name: Checkout repository
+        # Download your repository
+        uses: actions/checkout@v4
+
+      # Step 2: Install Flutter
+      - name: Setup Flutter
+        # Install Flutter on that computer
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.47.4"
+          # Reuse downloaded files to speed up future runs
+          cache: true
+
+      # Step 3: Install dependencies
+      - name: Get dependencies
+        run: flutter pub get
+
+      # Step 4: Verify formatting
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      # Step 5: Analyze code
+      - name: Analyze Flutter code
+        run: flutter analyze
+
+      # Step 6: Run tests
+      - name: Run Flutter tests
+        run: flutter test
