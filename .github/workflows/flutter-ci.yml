@@ -59,3 +59,104 @@ jobs:
       # Step 6: Run tests
       - name: Run Flutter tests
         run: flutter test
+
+  build-android:
+    name: Build Android
+    # Android builds only after the CI job passes.
+    needs: flutter-ci
+    # Limits builds to PRs, main, or manual executions.
+    if: >-
+      github.event.name == 'workflow_dispatch' ||
+      github.event.name == 'pull_request' ||
+        github.ref == 'refs/heads/main'
+
+    # GitHub provides a Linux computer
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Download repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+        # Step 2: Install Flutter
+      - name: Setup Flutter
+        # Install Flutter on that computer
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.47.4"
+          # Reuse downloaded files to speed up future runs
+          cache: true
+
+      # Step 3: Install dependencies
+      - name: Get dependencies
+        run: flutter pub get
+
+      # Step 4: Generates an Android APK
+      - name: Build APK
+        run: flutter build apk --release
+
+      # Step 5: Generates an Android App Bundle
+      - name: Build AAB
+        run: flutter build appbunle --release
+
+      # Step 6: Saves these files on GitHub for downloading
+      - name: Upload Android Artifcats
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-build
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/bundle/release/app-release.aab
+          retention-days: 7
+          if-no-file-found: error
+
+  build-ios:
+    name: Build iOS
+    # iOS builds only after the CI job passes.
+    needs: flutter-ci
+    # Limits builds to PRs, main, or manual executions.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request' ||
+      github.ref == 'refs/heads/main'
+
+    # GitHub provides a MacOS computer
+    runs-on: macos-latest
+
+    steps:
+      # Step 1: Download repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+        # Step 2: Install Flutter
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.47.4"
+          cache: true
+
+      # Step 3: Install dependencies
+      - name: Get dependencies
+        run: flutter pub get
+
+      # Step 4: Generates an iOS build
+      - name: Build iOS without signing
+        run: flutter build ios --release --no-codesign
+
+      # Step 5: Packages an iOS build
+      - name: Package iOS build
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent \
+            build/ios/iphoneos/Runner.app \
+            build/ios/Runner-unsigned.zip
+
+      # Step 6: Saves these files on GitHub for downloading
+      - name: Upload iOS artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-build
+          path: build/ios/Runner-unsigned.zip
+          retention-days: 7
+          if-no-files-found: error
