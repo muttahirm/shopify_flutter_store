@@ -62,46 +62,35 @@ jobs:
 
   build-android:
     name: Build Android
-    # Android builds only after the CI job passes.
     needs: flutter-ci
-    # Limits builds to PRs, main, or manual executions.
     if: >-
-      github.event.name == 'workflow_dispatch' ||
-      github.event.name == 'pull_request' ||
-        github.ref == 'refs/heads/main'
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request' ||
+      github.ref == 'refs/heads/main'
 
-    # GitHub provides a Linux computer
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Download repository code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-        # Step 2: Install Flutter
       - name: Setup Flutter
-        # Install Flutter on that computer
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: "3.47.4"
-          # Reuse downloaded files to speed up future runs
           cache: true
 
-      # Step 3: Install dependencies
       - name: Get dependencies
         run: flutter pub get
 
-      # Step 4: Generates an Android APK
       - name: Build APK
         run: flutter build apk --release
 
-      # Step 5: Generates an Android App Bundle
       - name: Build AAB
-        run: flutter build appbunle --release
+        run: flutter build appbundle --release
 
-      # Step 6: Saves these files on GitHub for downloading
-      - name: Upload Android Artifcats
+      - name: Upload Android artifacts
         uses: actions/upload-artifact@v7
         with:
           name: android-build
@@ -109,7 +98,7 @@ jobs:
             build/app/outputs/flutter-apk/app-release.apk
             build/app/outputs/bundle/release/app-release.aab
           retention-days: 7
-          if-no-file-found: error
+          if-no-files-found: error
 
   build-ios:
     name: Build iOS
